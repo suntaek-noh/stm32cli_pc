@@ -5,66 +5,77 @@
  *      Author: suntaek.noh
  */
 
+
+
 #include "ap.h"
+#include <conio.h>
 
 
-void cliTest(cli_args_t *args);
+
 
 
 void apInit(void)
 {
-  logPrintf("stm32cli V1.0\r\n");
-  cliOpen(_DEF_UART1, 115200);
+  logPrintf("stm32cli v1.0\n\n");
 
-  cliAdd("test", cliTest);
+  cliOpen(_DEF_UART1, 115200);
 }
 
 void apMain(int argc, char *argv[])
 {
-  uint32_t pre_time;
+  uint8_t  uart_ch;
+  char    *uart_port;
+  uint32_t uart_baud;
 
 
-  pre_time = millis();
+  if (argc != 3)
+  {
+    logPrintf("wrong args\n");
+    apExit();
+  }
+
+  uart_ch   = _DEF_UART2;
+  uart_port = argv[1];
+  uart_baud = (int32_t)strtoul(argv[2], (char **)NULL, (int) 0);        //string을 정수로 변경
+
+  logPrintf("uart ch   : %d\n", uart_ch);
+  logPrintf("uart port : %s\n", uart_port);
+  logPrintf("uart baud : %d bps\n", uart_baud);
+
+  if (uartOpenPort(uart_ch, uart_port, uart_baud) == true)
+  {
+    logPrintf("uart open : OK\n");
+  }
+  else
+  {
+    logPrintf("uart open : Fail\n");
+    apExit();
+  }
+
+
   while(1)
   {
-    if(millis() - pre_time >= 500)
+    //cliMain();
+
+    if (uartAvailable(_DEF_UART1) > 0)
     {
-      pre_time = millis();
+      uartPrintf(_DEF_UART2, "%c", uartRead(_DEF_UART1));
     }
 
-    cliMain();
+    if (uartAvailable(_DEF_UART2) > 0)
+    {
+      uartPrintf(_DEF_UART1, "%c", uartRead(_DEF_UART2));
+    }
   }
 }
 
 void apExit(void)
 {
-  printf("cli exit\n");
+  for (int i=0; i<UART_MAX_CH; i++)
+  {
+    uartClose(i);
+  }
+  printf("\ncli exit\n");
   exit(0);
 }
-
-void cliTest(cli_args_t *args)
-{
-  bool ret = false;
-
-  if(args->argc == 1 && args->isStr(0,"cnt") == true)
-  {
-    uint32_t cnt = 0;
-
-    while(cliKeepLoop())
-    {
-      cliPrintf("cnt = %d\n", cnt++);
-      delay(500);
-    }
-
-    ret = true;
-  }
-
-
-  if(ret != true)
-  {
-    cliPrintf("test cnt\n");
-  }
-
-}
-
 
