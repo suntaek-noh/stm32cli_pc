@@ -16,6 +16,8 @@ enum
   FILE_TYPE_BIN,
 };
 
+#define TX_BLOCK_LENGTH   512
+
 int32_t getFileSize(char *file_name);
 
 void apInit(void)
@@ -23,8 +25,6 @@ void apInit(void)
   logPrintf("stm32cli v1.0\n\n");
 
   cliOpen(_DEF_UART1, 57600);
-
-
 }
 
 void apMain(int argc, char *argv[])
@@ -32,22 +32,24 @@ void apMain(int argc, char *argv[])
   bool ret;
   uint8_t err_code;
 
-  uint8_t  uart_ch;
-  char    *uart_port;
-  uint32_t uart_baud;
-  uint8_t boot_ver[32];
-  uint8_t boot_name[32];
-  uint8_t firm_ver[32];
-  uint8_t firm_name[32];
+  uint8_t   uart_ch;
+  char      *uart_port;
+  uint32_t  uart_baud;
+  uint8_t   boot_ver[32];
+  uint8_t   boot_name[32];
+  uint8_t   firm_ver[32];
+  uint8_t   firm_name[32];
 
-  uint32_t pre_time;
-  uint32_t exe_time;
+  uint32_t  pre_time;
+  uint32_t  exe_time;
 
-  uint8_t  file_type;
-  uint32_t file_addr;
-  int32_t  file_size;
-  char file_name[256];
-  uint8_t file_run;
+  uint8_t   file_type;
+  uint32_t  file_addr;
+  int32_t   file_size;
+  char      file_name[256];
+  uint8_t   file_run;
+
+  FILE      *fp;
 
 
   if (argc != 7)
@@ -97,8 +99,6 @@ void apMain(int argc, char *argv[])
   logPrintf("file size : %d bytes\n", file_size);
 
 
-
-
   // -- boot 시작
   ret = bootInit(uart_ch, uart_port, uart_baud);
   if(ret != true)
@@ -115,7 +115,6 @@ void apMain(int argc, char *argv[])
     //cliMain();
 
     err_code = bootCmdReadBootVersion(boot_ver);
-
     if(err_code != CMD_OK)
     {
       logPrintf("bootCmdReadBootVersion fail : %d\r\n", err_code);
@@ -126,7 +125,6 @@ void apMain(int argc, char *argv[])
 
 
     err_code = bootCmdReadBootName(boot_name);
-
     if(err_code != CMD_OK)
     {
       logPrintf("bootCmdReadBootName fail : %d\r\n", err_code);
@@ -136,7 +134,6 @@ void apMain(int argc, char *argv[])
     logPrintf("boot name \t: %s\n", boot_name);
 
     err_code = bootCmdReadFirmVersion(firm_ver);
-
     if(err_code != CMD_OK)
     {
       logPrintf("bootCmdReadFirmVersion fail : %d\r\n", err_code);
@@ -145,9 +142,7 @@ void apMain(int argc, char *argv[])
 
     logPrintf("firm ver \t: %s\n", firm_ver);
 
-
     err_code = bootCmdReadFirmName(firm_name);
-
     if(err_code != CMD_OK)
     {
       logPrintf("bootCmdReadFirmName fail : %d\r\n", err_code);
@@ -156,12 +151,12 @@ void apMain(int argc, char *argv[])
 
     logPrintf("firm name \t: %s\n", firm_name);
 
+
+    // -- Flash Erase
+    //
     pre_time = millis();
-    err_code =  bootCmdFlashErase(0x8010000, 64*1024, 5000);
+    err_code = bootCmdFlashErase(file_addr, file_size, 5000);
     exe_time = millis() - pre_time;
-
-
-
     if(err_code != CMD_OK)
     {
       logPrintf("bootCmdFlashErase fail : %d\n", err_code);
@@ -169,6 +164,69 @@ void apMain(int argc, char *argv[])
     }
 
     logPrintf("flash erase \t : OK (%dms)\n", exe_time);
+
+
+    // --Flash Write
+    //
+    if((fp = fopen(file_name, "rb")) == NULL)
+    {
+      logPrintf("unable to open %s\n", file_name);
+      apExit();
+    }
+
+    uint32_t addr;
+    uint32_t len;
+    bool write_done = false;
+    uint8_t tx_buf[TX_BLOCK_LENGTH];
+
+    addr = file_addr;   // 플레쉬 시작 주소
+
+    pre_time = millis();
+    while(1)
+    {
+      if(!feof(fp))   // 파일의 끝 확인
+      {
+        len = fread(tx_buf, 1, TX_BLOCK_LENGTH, fp);
+
+        err_code = bootCmdFlashWrite(addr, tx_buf, len, 1000);
+        if(err_code == CMD_OK)
+        {
+          addr += len;
+
+          logPrintf("flash write \t: %d%%\r", (addr-file_addr)*100 / file_size);
+
+          if((addr-file_addr) >= file_size)  // write 확인
+          {
+            write_done = true;
+            break;
+          }
+        }
+        else
+        {
+          logPrintf("bootCmdFlashWrite fail : 0x%X, %d\n", addr, err_code);
+          break;
+        }
+      }
+      else
+      {
+        break;
+      }
+
+    }
+
+    fclose(fp);
+
+    exe_time = millis() - pre_time;
+    logPrintf("\n");
+
+    if(write_done == true)
+    {
+      logPrintf("flash write \t : OK (%dms)\n", exe_time);
+    }
+    else
+    {
+      logPrintf("flash write \t : Fail \n");
+    }
 
     break;
 
