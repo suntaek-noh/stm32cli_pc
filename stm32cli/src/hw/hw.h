@@ -26,6 +26,7 @@
 
 #include "spi_flash.h"
 
+#include "cmd.h"
 
 
 void hwInit(void);
