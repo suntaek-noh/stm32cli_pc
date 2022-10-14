@@ -15,7 +15,7 @@
 #define BOOT_CMD_READ_FIRM_NAME         0x03
 #define BOOT_CMD_FLASH_ERASE            0x04
 #define BOOT_CMD_FLASH_WRITE            0x05
-
+#define BOOT_CMD_JUMP_TO_FW             0x08
 
 #define BOOT_CMD_LED_CONTROL            0x10
 
@@ -34,8 +34,9 @@ bool bootInit(uint8_t channel, char *port_name, uint32_t baud)
   return ret;
 }
 
-bool bootDeInit(uint8_t charnnel)
+bool bootDeInit(uint8_t channel)
 {
+  uartClose(channel);
   return true;
 }
 
@@ -217,3 +218,24 @@ uint8_t bootCmdFlashWrite(uint32_t addr, uint8_t *p_data, uint32_t length, uint3
   return err_code;
 }
 
+
+uint8_t bootCmdJumpToFw(void)
+{
+  bool ret;
+  uint8_t err_code = CMD_OK;
+  cmd_t *p_cmd = &cmd;
+
+  ret = cmdSendCmdRxResp(p_cmd, BOOT_CMD_JUMP_TO_FW, NULL, 0, 100);     // 커맨드를 보내고 500ms 동안 응답을 기다린다.
+
+  if(ret == true && p_cmd->error == CMD_OK)
+  {
+    err_code = CMD_OK;
+  }
+  else
+  {
+    err_code = p_cmd->error;
+  }
+
+
+  return err_code;
+}
