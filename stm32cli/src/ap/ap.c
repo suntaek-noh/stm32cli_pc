@@ -104,8 +104,10 @@ void apMain(int argc, char *argv[])
     file_run = true;
     logPrintf("file run : true\n");
   }
-  logPrintf("file run : false\n");
-
+  else
+  {
+    logPrintf("file run : false\n");
+  }
 
 
 

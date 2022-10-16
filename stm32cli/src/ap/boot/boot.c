@@ -56,6 +56,8 @@ uint8_t bootCmdReadBootVersion(uint8_t *p_version)
     {
       p_version[i] = p_cmd->rx_packet.data[i];
     }
+
+    p_version[31] = 0;   // 마지막에는 무조건 널값을 집어 넣는다.
   }
   else
   {
@@ -81,6 +83,9 @@ uint8_t bootCmdReadBootName(uint8_t *p_str)
     {
       p_str[i] = p_cmd->rx_packet.data[i];
     }
+
+    p_str[31] = 0;
+
   }
   else
   {
@@ -106,6 +111,8 @@ uint8_t bootCmdReadFirmVersion(uint8_t *p_version)
     {
       p_version[i] = p_cmd->rx_packet.data[i];
     }
+
+    p_version[31] = 0;
   }
   else
   {
@@ -131,6 +138,8 @@ uint8_t bootCmdReadFirmName(uint8_t *p_str)
     {
       p_str[i] = p_cmd->rx_packet.data[i];
     }
+
+    p_str[31] = 0;
   }
   else
   {
